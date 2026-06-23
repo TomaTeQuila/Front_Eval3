@@ -1,66 +1,60 @@
-# Frontend - Gestión de Productos
+# Frontend — Product Management
 
-Frontend en Java que genera una página estática HTML para gestión de productos.
+Interfaz web para ver el catálogo de productos y registrar usuarios. El proyecto usa Maven + Java para generar archivos HTML/CSS/JS estáticos, que se sirven con nginx en producción.
 
-## Características
+Se conecta a dos backends:
+- **backJs** (puerto 8081) → registro de usuarios
+- **backPy** (puerto 8082) → catálogo de productos
 
-- Registro de usuarios
-- Visualización de productos (solo lectura, no se puede comprar)
-- Interfaz moderna y responsiva
-- Almacenamiento local de usuarios registrados (localStorage)
+Si algún backend no responde, el frontend carga datos de respaldo en lugar de romperse.
 
-## Requisitos
+## Variables de entorno
 
-- Java 17 o superior
-- Maven 3.6 o superior
+Las URLs de los backends se inyectan en el JS en tiempo de build, no en runtime:
 
-## Build
+```
+BACKEND_USERS_URL=http://localhost:8081
+BACKEND_PRODUCTS_URL=http://localhost:8082
+```
 
-Para generar la página estática:
+## Correr local
 
 ```bash
-mvn clean compile exec:java
+# sin .env usa localhost por defecto
+mvn exec:java -Dexec.mainClass="com.eval3.frontend.StaticPageGenerator"
+
+# luego abrir output/index.html en el navegador
 ```
 
-Esto generará los archivos estáticos en el directorio `output/`:
-- `index.html` - Página principal
-- `styles.css` - Estilos CSS
-- `script.js` - Funcionalidad JavaScript
+Con un `.env` en la raíz se leen las URLs desde ahí.
 
-## Ejecutar
+## Docker
 
-Abra el archivo `output/index.html` en su navegador web.
+```bash
+docker build \
+  --build-arg BACKEND_USERS_URL=http://tu-alb:8081 \
+  --build-arg BACKEND_PRODUCTS_URL=http://tu-alb:8082 \
+  -t front-eval3 .
 
-## Estructura del Proyecto
-
-```
-front/
-├── pom.xml                          # Configuración Maven
-├── README.md                        # Este archivo
-├── src/
-│   └── main/
-│       ├── java/
-│       │   └── com/
-│       │       └── eval3/
-│       │           └── frontend/
-│       │               └── StaticPageGenerator.java  # Generador de páginas
-│       └── resources/
-└── output/                          # Directorio generado con archivos estáticos
-    ├── index.html
-    ├── styles.css
-    └── script.js
+docker run -p 80:80 front-eval3
 ```
 
-## Funcionalidades
+La imagen usa un build multi-stage: Maven genera el HTML/CSS/JS y nginx lo sirve.
 
-### Registro de Usuarios
-- Formulario de registro con validación
-- Almacenamiento en localStorage
-- Validación de contraseñas
-- Prevención de duplicados
+## CI/CD
 
-### Visualización de Productos
-- Grid de productos con información detallada
-- 8 productos de ejemplo pre-cargados
-- Diseño responsivo
-- Solo lectura (no se pueden realizar compras)
+Cada push a `main` construye la imagen pasando las URLs como build args desde los secrets de GitHub, la sube a ECR y fuerza un nuevo deploy en ECS via `.github/workflows/deploy.yml`.
+
+Secrets necesarios en el repositorio de GitHub:
+
+```
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
+AWS_REGION
+ECR_REPOSITORY_FRONT
+ECS_CLUSTER
+ECS_SERVICE_FRONT
+BACKEND_USERS_URL
+BACKEND_PRODUCTS_URL
+```
