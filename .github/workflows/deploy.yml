@@ -31,6 +31,7 @@ jobs:
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_FRONT }}
         run: |
           docker build \
+            --no-cache \
             --build-arg BACKEND_USERS_URL=${{ secrets.BACKEND_USERS_URL }} \
             --build-arg BACKEND_PRODUCTS_URL=${{ secrets.BACKEND_PRODUCTS_URL }} \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
